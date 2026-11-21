@@ -1,0 +1,82 @@
+# Plan de OWASP ZAP (Automation Framework) para el pipeline.
+# ci/zap.sh reemplaza estas variables antes de correrlo:
+#   TARGET          URL de staging (http://127.0.0.1:8001)
+#   SESSION_COOKIE  cookie de sesión de un usuario de prueba (ci/sesion-zap.sh)
+#   REPORT_DIR      carpeta donde quedan los reportes
+env:
+  contexts:
+    - name: securedev
+      urls:
+        - "${TARGET}"
+      includePaths:
+        - "${TARGET}.*"
+      excludePaths:
+        # Salir de la sesión no rompe el escaneo (la cookie se reinyecta), pero no aporta.
+        - "${TARGET}/logout.*"
+        # Métricas para Prometheus: fuera del alcance del escaneo de la app.
+        - "${TARGET}/metrics.*"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  # 1. Toda petición de ZAP sale con la sesión de «ana». Sin esto ZAP solo ve /login
+  #    y no llega a /search ni a los tickets, que es donde están la SQLi, el XSS y el IDOR.
+  - type: replacer
+    parameters:
+      deleteAllRules: true
+    rules:
+      - description: "Sesión del usuario de prueba"
+        matchType: req_header
+        matchString: Cookie
+        matchRegex: false
+        replacementString: "session=${SESSION_COOKIE}"
+
+  # 2. Semillas: páginas que el spider podría no descubrir solo.
+  - type: requestor
+    requests:
+      - url: "${TARGET}/"
+      - url: "${TARGET}/search?q=revision"
+      - url: "${TARGET}/tickets/1"
+      - url: "${TARGET}/tickets/2"
+
+  # 3. Spider: recorre enlaces y envía formularios (también el de comentarios).
+  - type: spider
+    parameters:
+      context: securedev
+      maxDuration: 2
+      processForm: true
+      postForm: true
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  # 4. Escaneo activo: aquí aparecen la inyección SQL y el XSS.
+  - type: activeScan
+    parameters:
+      context: securedev
+      maxRuleDurationInMins: 2
+      maxScanDurationInMins: 15
+
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "${REPORT_DIR}"
+      reportFile: zap
+      reportTitle: "SecureDev Tickets · OWASP ZAP"
+    risks: [info, low, medium, high]
+
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${REPORT_DIR}"
+      reportFile: zap
+    risks: [info, low, medium, high]
+
+  # 5. Código de salida para Jenkins: 1 si hay alertas altas, 2 si hay medias.
+  - type: exitStatus
+    parameters:
+      errorLevel: High
+      warnLevel: Medium

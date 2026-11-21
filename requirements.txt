@@ -1,3 +1,5 @@
 Flask==2.2.5
 Werkzeug==2.2.3
 prometheus-client==0.17.1
+# Servidor WSGI para staging y producción (el servidor de desarrollo de Flask no es para eso).
+gunicorn==27.0.1

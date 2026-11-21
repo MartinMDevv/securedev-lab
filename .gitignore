@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 .env
 reports/
+staging.pid
+.pytest_cache/

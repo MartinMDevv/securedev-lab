@@ -1,0 +1,2 @@
+# Solo para el pipeline (no van a la imagen de producción).
+pytest==9.2.0
