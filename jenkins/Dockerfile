@@ -1,7 +1,9 @@
 # Imagen de Jenkins para el pipeline DevSecOps del P3 (OCY1102).
 # Mismo enfoque que la clase del 30-oct: las herramientas de seguridad viven DENTRO
 # de Jenkins, así el pipeline no necesita el socket de Docker del host.
-FROM jenkins/jenkins:2.541.3-lts-jdk17
+# 21-nov: se sube desde 2.541.3-lts-jdk17 porque Jenkins avisó 4 grupos de vulnerabilidades
+# del núcleo (corregidas en LTS 2.580.2) y el fin de soporte de Java 17.
+FROM jenkins/jenkins:2.580.2-lts-jdk21
 
 USER root
 
