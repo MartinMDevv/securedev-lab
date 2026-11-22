@@ -4,20 +4,7 @@ Las pruebas de seguridad (una por vulnerabilidad) se agregan en test_seguridad.p
 junto con cada corrección.
 """
 
-import pytest
-
-from app import create_app
-
-
-@pytest.fixture
-def client(tmp_path):
-    app = create_app(tmp_path / "test.db")
-    app.config["TESTING"] = True
-    return app.test_client()
-
-
-def login(client, usuario, clave):
-    return client.post("/login", data={"username": usuario, "password": clave})
+from conftest import comentar, login
 
 
 def test_health_responde_ok(client):
@@ -53,7 +40,7 @@ def test_portada_muestra_solo_mis_tickets(client):
 
 def test_se_puede_comentar_mi_ticket(client):
     login(client, "ana", "ana123")
-    respuesta = client.post("/tickets/1/comments", data={"body": "Listo el CI"})
+    respuesta = comentar(client, 1, "Listo el CI")
     assert respuesta.status_code == 302
     assert "Listo el CI" in client.get("/tickets/1").get_data(as_text=True)
 
