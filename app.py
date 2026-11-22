@@ -105,6 +105,19 @@ def create_app(database_path=None):
     def current_user():
         return session.get("user_id")
 
+    def ticket_del_usuario(ticket_id):
+        """Devuelve el ticket solo si pertenece al usuario actual; si no, 404.
+
+        Se responde 404 y no 403 para no confirmar que el ticket existe.
+        """
+        item = db().execute(
+            "SELECT id, owner_id, title, body FROM tickets WHERE id = ? AND owner_id = ?",
+            (ticket_id, current_user()),
+        ).fetchone()
+        if item is None:
+            abort(404)
+        return item
+
     @app.route("/")
     def index():
         if not current_user():
@@ -141,11 +154,7 @@ def create_app(database_path=None):
     def ticket(ticket_id):
         if not current_user():
             return redirect(url_for("login"))
-        item = db().execute(
-            "SELECT id, owner_id, title, body FROM tickets WHERE id = ?", (ticket_id,)
-        ).fetchone()
-        if item is None:
-            abort(404)
+        item = ticket_del_usuario(ticket_id)
         comments = db().execute(
             "SELECT body FROM comments WHERE ticket_id = ? ORDER BY id", (ticket_id,)
         ).fetchall()
