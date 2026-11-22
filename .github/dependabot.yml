@@ -1,0 +1,35 @@
+# Dependabot: revisa las dependencias cada semana y abre un PR por cada actualización.
+# Cada PR lo construye Jenkins (pip-audit + pruebas + ZAP); solo se mergea si sale verde.
+# Las alertas de seguridad abren PR aparte apenas aparece un CVE (Settings → Advanced Security).
+version: 2
+updates:
+  # Librerías de Python (requirements.txt y requirements-dev.txt).
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Santiago
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:
+      # Flask y Werkzeug se publican en pareja: Flask 3.x exige Werkzeug 3.x.
+      # Actualizarlos por separado rompe la app, así que van en un solo PR.
+      flask:
+        patterns:
+          - "flask"
+          - "werkzeug"
+          - "flask-*"
+
+  # Imágenes base de Docker: la de la app y la de Jenkins.
+  - package-ecosystem: docker
+    directories:
+      - "/"
+      - "/jenkins"
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Santiago
+    commit-message:
+      prefix: "deps(docker)"
