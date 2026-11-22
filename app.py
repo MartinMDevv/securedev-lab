@@ -164,8 +164,7 @@ def create_app(database_path=None):
     def add_comment(ticket_id):
         if not current_user():
             return redirect(url_for("login"))
-        if db().execute("SELECT id FROM tickets WHERE id = ?", (ticket_id,)).fetchone() is None:
-            abort(404)
+        ticket_del_usuario(ticket_id)
         body = request.form.get("body", "")
         db().execute(
             "INSERT INTO comments (ticket_id, author_id, body) VALUES (?, ?, ?)",
