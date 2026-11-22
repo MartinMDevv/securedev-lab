@@ -16,7 +16,7 @@ if [ ! -s "$PROD_DIR/secret_key" ]; then
 fi
 
 rm -rf "$rel" && mkdir -p "$rel"
-cp -r app.py templates requirements.txt "$rel/"
+cp -r app.py templates static requirements.txt "$rel/"
 python3 -m venv "$rel/.venv"
 "$rel/.venv/bin/pip" install --quiet -r "$rel/requirements.txt"
 

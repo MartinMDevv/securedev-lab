@@ -44,6 +44,11 @@ def create_app(database_path=None):
             "Generar una con: python3 -c 'import secrets; print(secrets.token_hex(32))'"
         )
     app.config["SECRET_KEY"] = secret_key
+    # Cookie de sesión: no legible desde JavaScript y no enviada en peticiones de otros sitios.
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # Secure exige HTTPS; el laboratorio corre en HTTP, así que se activa por variable.
+    app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE") == "1"
     app.config["DATABASE_PATH"] = str(
         database_path or os.getenv("DATABASE_PATH", str(Path(__file__).with_name("securedev.db")))
     )
@@ -70,6 +75,18 @@ def create_app(database_path=None):
     @app.before_request
     def start_request_timer():
         g.request_started_at = time.perf_counter()
+
+    @app.after_request
+    def security_headers(response):
+        # Solo recursos del propio sitio, sin plugins, sin ser embebida en iframes.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; object-src 'none'; base-uri 'self'; "
+            "form-action 'self'; frame-ancestors 'none'"
+        )
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "same-origin"
+        return response
 
     @app.after_request
     def record_request(response):
@@ -223,4 +240,5 @@ def create_app(database_path=None):
 
 
 if __name__ == "__main__":
-    create_app().run(host="0.0.0.0", port=8000)
+    # Solo para desarrollo local. Staging y producción usan gunicorn (ver Dockerfile y ci/).
+    create_app().run(host="127.0.0.1", port=8000)
