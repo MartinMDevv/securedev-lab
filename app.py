@@ -171,9 +171,10 @@ def create_app(database_path=None):
             return redirect(url_for("login"))
         query = request.args.get("q", "")
         # Consulta parametrizada: el texto del usuario viaja como DATO, nunca como parte del SQL.
+        # Y solo se busca entre los tickets del usuario que inició sesión.
         tickets = db().execute(
-            "SELECT id, title FROM tickets WHERE title LIKE ? ORDER BY id",
-            (f"%{query}%",),
+            "SELECT id, title FROM tickets WHERE owner_id = ? AND title LIKE ? ORDER BY id",
+            (current_user(), f"%{query}%"),
         ).fetchall()
         return render_template("search.html", tickets=tickets, query=query)
 
