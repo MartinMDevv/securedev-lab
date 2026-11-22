@@ -10,6 +10,8 @@ import time
 from pathlib import Path
 
 from flask import Flask, abort, g, redirect, render_template, request, session, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -48,6 +50,10 @@ def create_app(database_path=None):
 
     # Token CSRF obligatorio en todo POST: sin él la petición se rechaza con 400.
     CSRFProtect(app)
+
+    # Límite de intentos por IP (contador en memoria del proceso: por eso producción
+    # corre con un solo worker de gunicorn).
+    limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
     def db():
         if "db" not in g:
@@ -143,6 +149,8 @@ def create_app(database_path=None):
         return render_template("index.html", tickets=tickets)
 
     @app.route("/login", methods=["GET", "POST"])
+    # Fuerza bruta: más de 5 intentos por minuto desde la misma IP reciben 429.
+    @limiter.limit("5 per minute", methods=["POST"])
     def login():
         error = None
         if request.method == "POST":
@@ -157,6 +165,8 @@ def create_app(database_path=None):
                 session["username"] = user["username"]
                 return redirect(url_for("index"))
             LOGIN_FAILURES.inc()
+            # Registro para auditoría: quién intentó y desde dónde (%r evita inyectar saltos de línea).
+            app.logger.warning("Login fallido usuario=%r ip=%s", username, request.remote_addr)
             error = "Credenciales inválidas"
         return render_template("login.html", error=error)
 

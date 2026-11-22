@@ -3,5 +3,7 @@ Werkzeug==2.2.3
 prometheus-client==0.17.1
 # Protección CSRF (token en cada formulario POST).
 Flask-WTF==1.3.0
+# Límite de intentos de login (fuerza bruta).
+Flask-Limiter==4.1.1
 # Servidor WSGI para staging y producción (el servidor de desarrollo de Flask no es para eso).
 gunicorn==27.0.1
