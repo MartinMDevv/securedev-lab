@@ -22,6 +22,11 @@ if [ "$codigo" != "302" ]; then
     exit 1
 fi
 
+# Visitar una página con sesión hace que la app guarde el token CSRF dentro de la cookie.
+# Así ZAP usa una sesión que ya trae su token y puede enviar formularios válidos; si no,
+# todos sus POST rebotarían con 400 y el escaneo no probaría nada detrás de ellos.
+curl -fsS -o /dev/null -c "$jar" -b "$jar" "$base/"
+
 cookie="$(awk '$6 == "session" { print $7 }' "$jar" | tail -1)"
 [ -n "$cookie" ] || { echo "No llegó la cookie de sesión" >&2; exit 1; }
 printf '%s' "$cookie"
