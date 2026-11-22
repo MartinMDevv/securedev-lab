@@ -117,6 +117,9 @@ pipeline {
         stage('Staging') {
             steps {
                 sh '''
+                    # Jenkins corre los sh con «set -x», que imprime cada comando ya expandido:
+                    # sin esto, el SECRET_KEY de staging quedaba en texto plano en la consola.
+                    set +x
                     # Base de datos desechable: cada build parte con los datos de prueba.
                     rm -f staging.db staging.pid
                     DATABASE_PATH="$WORKSPACE/staging.db" \
