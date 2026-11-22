@@ -1,0 +1,47 @@
+# Monitoreo de «producción»: Prometheus + Grafana.
+# Uso:  docker compose -f compose.monitoreo.yaml up -d
+# Requiere que jenkins-p3 esté corriendo en la red «securedev» (ahí vive producción, puerto 8000).
+name: securedev-monitoreo
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./monitoreo/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"     # solo localhost: Prometheus no tiene autenticación
+    networks: [securedev]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.3.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # Se lee de .env (fuera de git). Si falta, compose no arranca.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Falta GRAFANA_ADMIN_PASSWORD en .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./monitoreo/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoreo/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoreo/grafana/alerting:/etc/grafana/provisioning/alerting:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [securedev]
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+networks:
+  securedev:
+    external: true    # la crea Jenkins; ojo: si Jenkins está apagado, un «docker network prune» la borra
+
+volumes:
+  prometheus_data:
+  grafana_data:

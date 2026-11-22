@@ -1,0 +1,98 @@
+# Reglas de alerta de seguridad, cargadas por Grafana al arrancar (versionadas en git).
+# Se ven en Grafana → Alerting → Alert rules. Cada una dice qué mide y qué hacer.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: seguridad
+    folder: SecureDev
+    interval: 10s
+    rules:
+      - uid: securedev-fuerza-bruta
+        title: Fuerza bruta en /login
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(increase(securedev_login_failures_total[1m]))
+              instant: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [3] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels: { severidad: alta, owasp: A07 }
+        annotations:
+          summary: "Más de 3 logins fallidos en 1 minuto"
+          description: >-
+            Posible ataque de fuerza bruta o credential stuffing. Revisar en el log de producción
+            (logs/error.log, «Login fallido usuario=… ip=…») qué IP y qué usuarios. El límite de
+            5 intentos/min por IP responde 429 solo; si el ataque viene de muchas IP, bloquear en el
+            proxy y forzar cambio de clave de las cuentas atacadas.
+
+      - uid: securedev-escaneo
+        title: Escaneo o enumeración (ráfaga de 4xx)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(increase(securedev_http_requests_total{status=~"4.."}[1m])) or vector(0)
+              instant: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [20] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels: { severidad: media, owasp: A01 }
+        annotations:
+          summary: "Más de 20 respuestas 4xx en 1 minuto"
+          description: >-
+            Alguien está probando rutas inexistentes (escaneo) o pidiendo tickets que no son suyos
+            (enumeración / intento de IDOR). Ver el panel «4xx por endpoint»: 404 en «ticket» =
+            enumeración; 404 en «unknown» = escaneo. Identificar la IP en logs/access.log.
+
+      - uid: securedev-caida
+        title: Producción no responde
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: up{job="securedev"}
+              instant: true
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        noDataState: Alerting
+        execErrState: Error
+        for: 30s
+        labels: { severidad: alta }
+        annotations:
+          summary: "Prometheus no alcanza /metrics de producción"
+          description: >-
+            La app está caída o el despliegue falló. Revisar el último build en Jenkins y
+            logs/error.log; volver a la release anterior apuntando «actual» a releases/<n-1>.
