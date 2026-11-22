@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from flask import Flask, abort, g, redirect, render_template, request, session, url_for
+from flask_wtf.csrf import CSRFProtect
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -37,6 +38,9 @@ def create_app(database_path=None):
         database_path or os.getenv("DATABASE_PATH", str(Path(__file__).with_name("securedev.db")))
     )
 
+    # Token CSRF obligatorio en todo POST: sin él la petición se rechaza con 400.
+    CSRFProtect(app)
+
     def db():
         if "db" not in g:
             g.db = sqlite3.connect(app.config["DATABASE_PATH"])
@@ -58,7 +62,10 @@ def create_app(database_path=None):
         if request.endpoint != "metrics":
             endpoint = request.endpoint or "unknown"
             HTTP_REQUESTS.labels(endpoint, request.method, str(response.status_code)).inc()
-            HTTP_DURATION.labels(endpoint).observe(time.perf_counter() - g.request_started_at)
+            # Si otra validación cortó la petición antes de iniciar el cronómetro (ej. CSRF),
+            # igual se cuenta: esos rechazos son justo los que interesa ver en Grafana.
+            started = g.get("request_started_at", time.perf_counter())
+            HTTP_DURATION.labels(endpoint).observe(time.perf_counter() - started)
         return response
 
     with app.app_context():

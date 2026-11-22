@@ -22,7 +22,7 @@
       <a href="{{ url_for('index') }}">Mis tickets</a>
       <a href="{{ url_for('search') }}">Buscar</a>
       <span>{{ session.username }}</span>
-      <form method="post" action="{{ url_for('logout') }}"><button>Salir</button></form>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Salir</button></form>
     {% endif %}
   </nav>
   {% block content %}{% endblock %}
