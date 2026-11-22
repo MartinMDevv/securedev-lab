@@ -33,7 +33,15 @@ LOGIN_FAILURES = Counter(
 
 def create_app(database_path=None):
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-insegura-solo-laboratorio")
+    # Sin valor por defecto: con una clave conocida cualquiera puede firmar su propia
+    # cookie de sesión (ej. user_id=2) y entrar como otro usuario.
+    secret_key = os.getenv("SECRET_KEY", "")
+    if len(secret_key) < 32:
+        raise RuntimeError(
+            "Falta SECRET_KEY o es demasiado corta (mínimo 32 caracteres). "
+            "Generar una con: python3 -c 'import secrets; print(secrets.token_hex(32))'"
+        )
+    app.config["SECRET_KEY"] = secret_key
     app.config["DATABASE_PATH"] = str(
         database_path or os.getenv("DATABASE_PATH", str(Path(__file__).with_name("securedev.db")))
     )

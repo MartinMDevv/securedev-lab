@@ -10,7 +10,7 @@ from app import create_app
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     # La app exige SECRET_KEY por variable de entorno (vulnerabilidad #7).
-    monkeypatch.setenv("SECRET_KEY", "clave-solo-para-pruebas")
+    monkeypatch.setenv("SECRET_KEY", "clave-solo-para-pruebas-" + "x" * 32)
     aplicacion = create_app(tmp_path / "test.db")
     aplicacion.config["TESTING"] = True
     return aplicacion

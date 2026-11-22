@@ -5,7 +5,8 @@ services:
     build: .
     environment:
       DATABASE_PATH: /data/securedev.db
-      SECRET_KEY: clave-insegura-solo-laboratorio
+      # Se lee del archivo .env (fuera de git). Si falta, compose no arranca.
+      SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en .env (ver .env.example)}
     volumes:
       - app_data:/data
     ports:
